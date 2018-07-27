@@ -1,0 +1,8 @@
+# Files that I don't want! 
+*~ 
+*.pdf 
+*.csv 
+*.zip
+
+# Add files here produced by PyCharm
+.idea/* 
