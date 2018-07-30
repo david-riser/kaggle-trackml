@@ -25,6 +25,10 @@ from sklearn.preprocessing import MinMaxScaler
 from trackml.dataset import load_event, load_dataset
 from trackml.score import score_event
 
+# For comparing 
+from sklearn.cluster import DBSCAN
+from sklearn.preprocessing import StandardScaler 
+
 class Clusterer(object):
     def __init__(self, n1=100, n2=100, n3=100, n4=100):
         ''' This method assumes the four features
@@ -108,6 +112,7 @@ def test_events():
             d = np.sqrt(hits['x'].values ** 2 + hits['y'].values ** 2 + hits['z'].values**2)
             hits['zd']   = hits['z'].values / d
             hits['zr']   = hits['z'].values / r
+            hits['phi']  = np.arctan2(hits['y'].values, hits['x'].values)
 
             labels = []
             counts = []
@@ -115,7 +120,6 @@ def test_events():
                 dz = dz0 + i*dz_step
 
                 # Add the needed information.
-                hits['phi']  = np.arctan2(hits['y'].values, hits['x'].values)
                 phi_prime = hits['phi'].values + np.sign(hits['z'].values) * \
                             dz * hits['z'].values
 
@@ -123,9 +127,13 @@ def test_events():
                 hits['cphi'] = np.cos(phi_prime)
 
                 scaler = MinMaxScaler()
+                #            scaler = StandardScaler()
                 X = scaler.fit_transform(hits[['zr', 'zd', 'sphi', 'cphi']])
                 
+                #model = DBSCAN(eps=0.008)
+                #labels.append(model.fit_predict(X))
                 labels.append(model.predict(X))
+
                 unique, reverse, count = np.unique(labels[i], return_counts=True, return_inverse=True)
                 count = count[reverse]
                 count[np.where(labels[i] == 0)] = 0
