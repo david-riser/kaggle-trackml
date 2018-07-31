@@ -94,11 +94,11 @@ def test_events():
     ''' Process a few events to demonstrate the method
     before using it on the entire testing dataset.
     '''
-    events        = range(1000, 1005)
+    events        = range(1000, 1002)
     path_to_train = '../../data/raw/train_100_events/'
     parts_to_load = ['hits', 'truth']
 
-    model = Clusterer(800, 2, 40, 40)
+    model = Clusterer(800, 100, 100, 100)
     for event_id in events:
 
         with timer('Processing %s' % event_id):
@@ -117,7 +117,7 @@ def test_events():
             labels = []
             counts = []
             for i in range(0, 100):
-                dz = dz0 + i*dz_step
+                dz = dz0 + i * dz_step
 
                 # Add the needed information.
                 phi_prime = hits['phi'].values + np.sign(hits['z'].values) * \
@@ -133,25 +133,51 @@ def test_events():
                 #model = DBSCAN(eps=0.008)
                 #labels.append(model.fit_predict(X))
                 labels.append(model.predict(X))
+                print_diagnostics(labels[i])
 
                 unique, reverse, count = np.unique(labels[i], return_counts=True, return_inverse=True)
                 count = count[reverse]
-                count[np.where(labels[i] == 0)] = 0
+
+                # This condition only applies for DBSCAN.
+                # count[np.where(labels[i] == 0)] = 0
                 count[np.where(labels[i] > 20)] = 0
                 counts.append(count)
-                
 
-            final_labels, final_counts = labels[0], counts[0]
-            for l, c in zip(labels[1:], counts[1:]):
-                idx = np.where((c-final_counts > 0) & (l!=0))[0]
-                final_labels[idx] = l[idx] + final_labels.max()
-                final_counts[idx] = c[idx]
+            final_labels = merge_labels(counts, labels)
 
-            # Submission 
+            # Diagnostics
+            print_diagnostics(final_labels)
+
+            # Prepare submission for this event based on
+            # the merged labels.
             submission = create_one_event_submission(event_id, hits, final_labels)
             score = score_event_fast(truth, submission)
             print('score = %.4f' % score)
 
-                
+def merge_labels(counts, labels):
+    ''' Provided an ensemble of different labels for
+    all hits and the corresponding counts for each set of
+    labels, merge them together to create a final grouping.
+    This is done based on simple length criteria, longer
+    tracks are better up to 20.
+    '''
+
+    # Start by assuming the first set of labels
+    final_labels, final_counts = labels[0], counts[0]
+    for l, c in zip(labels[1:], counts[1:]):
+        #idx = np.where((c-final_counts > 0) & (l != 0))[0]
+
+        # Removed the condition that zero is a bad label,
+        # this only applies to DBSCAN.
+        idx = np.where((c-final_counts) > 0)[0]
+        final_labels[idx] = l[idx] + np.max(final_labels)
+        final_counts[idx] = c[idx]
+
+    return final_labels
+
+def print_diagnostics(labels):
+    unique, counts = np.unique(labels, return_counts=True)
+    print('Unique tracks %d, Average hits/track %d' % (len(unique), np.average(counts)))
+
 if __name__ == '__main__':
     test_events()
